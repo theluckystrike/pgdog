@@ -222,7 +222,8 @@ impl Schema {
     ) -> Vec<&'a str> {
         let path: &[String] = match search_path {
             Some(ParameterValue::Tuple(overriden)) => overriden.as_slice(),
-            _ => &self.inner.search_path,
+            Some(ParameterValue::String(overriden)) => std::slice::from_ref(overriden),
+            None => &self.inner.search_path,
         };
 
         path.iter()
@@ -397,6 +398,16 @@ mod test {
         let override_path = ParameterValue::Tuple(vec!["$user".into(), "app".into()]);
         let resolved = schema.resolve_search_path("bob", Some(&override_path));
         assert_eq!(resolved, vec!["bob", "app"]);
+    }
+
+    #[test]
+    fn test_resolve_search_path_override_single_schema() {
+        let schema = Schema::from_parts(vec!["$user".into(), "public".into()], HashMap::new());
+
+        // SET search_path TO tenant_b is parsed as a single string, not a tuple.
+        let override_path = ParameterValue::String("tenant_b".into());
+        let resolved = schema.resolve_search_path("alice", Some(&override_path));
+        assert_eq!(resolved, vec!["tenant_b"]);
     }
 
     #[test]
